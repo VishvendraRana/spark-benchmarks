@@ -65,9 +65,9 @@ object TestDFSIOConfParser extends LazyLogging {
           .text("Name of the local file in the current local directory where to append the benchmark results."),
 
         opt[String]("bufferSize").optional().valueName("<value>")
-          .action((s, c) => c.copy(fileSize = sizeToBytes(s)))
+          .action((s, c) => c.copy(bufferSize = sizeToBytes(s).toInt))
           .validate(validateSize)
-          .text("Size of each file to write (B|KB|MB|GB). Default to 1MB."),
+          .text("Size of buffer used in write operation (B|KB|MB|GB). Default to 1MB."),
 
         opt[Int]("numRuns").optional().valueName("<value>")
           .action((n, c) => c.copy(numRuns = n))
@@ -104,9 +104,9 @@ object TestDFSIOConfParser extends LazyLogging {
           .text("Name of the local file in the current local directory where to append the benchmark results."),
 
         opt[String]("bufferSize").optional().valueName("<value>")
-          .action((s, c) => c.copy(fileSize = sizeToBytes(s)))
+          .action((s, c) => c.copy(bufferSize = sizeToBytes(s).toInt))
           .validate(validateSize)
-          .text("Size of each file to write (B|KB|MB|GB). Default to 1MB."),
+          .text("Size of buffer used in read operation (B|KB|MB|GB). Default to 1MB."),
 
         opt[Int]("numRuns").optional().valueName("<value>")
           .action((n, c) => c.copy(numRuns = n))

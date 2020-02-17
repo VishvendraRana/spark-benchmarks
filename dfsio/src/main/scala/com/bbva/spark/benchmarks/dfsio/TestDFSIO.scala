@@ -58,6 +58,7 @@ object TestDFSIO extends App with LazyLogging {
     implicit val hadoopConf = new Configuration(sc.hadoopConfiguration)
 
     // set buffer size
+    logger.error(s"buffer size provided is: ${conf.bufferSize} bytes")
     hadoopConf.setInt("test.io.file.buffer.size", conf.bufferSize)
 
     val analyze: (=> Stats) => Unit = measure(conf.mode, conf.resFileName)
