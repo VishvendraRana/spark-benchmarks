@@ -29,7 +29,11 @@ object StatsAccumulator {
       size = s1.size + s2.size,
       time = s1.time + s2.time,
       rate = s1.rate + s2.rate,
-      latency = Latency(total = s1.latency.total + s2.latency.total, blocks = s1.latency.blocks + s2.latency.blocks, min = if (s1.latency.min < s2.latency.min) s1.latency.min else s2.latency.min, max = if (s1.latency.max > s2.latency.max) s1.latency.max else s2.latency.max),
+      latency = Latency(
+        total = s1.latency.total + s2.latency.total,
+        blocks = s1.latency.blocks + s2.latency.blocks,
+        min = if (s1.latency.min < s2.latency.min) s1.latency.min else s2.latency.min,
+        max = if (s1.latency.max > s2.latency.max) s1.latency.max else s2.latency.max),
       sqRate = s1.sqRate + s2.sqRate
     )
   }
