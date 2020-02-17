@@ -62,17 +62,20 @@ object TestDFSIO extends App with LazyLogging {
 
     val analyze: (=> Stats) => Unit = measure(conf.mode, conf.resFileName)
 
-    conf.mode match {
-      case Clean =>
-        cleanUp(conf.benchmarkDir)
-      case Write =>
-        createControlFiles(conf.benchmarkDir, conf.fileSize, conf.numFiles)
-        analyze(runWriteTest(conf.benchmarkDir))
-      case Read =>
-        analyze(runReadTest(conf.benchmarkDir))
-      case _ => // ignore
+    for (_ <- 0 until conf.numRuns) {
+      logger.error("========================START========================================")
+      conf.mode match {
+        case Clean =>
+          cleanUp(conf.benchmarkDir)
+        case Write =>
+          createControlFiles(conf.benchmarkDir, conf.fileSize, conf.numFiles)
+          analyze(runWriteTest(conf.benchmarkDir))
+        case Read =>
+          analyze(runReadTest(conf.benchmarkDir))
+        case _ => // ignore
+      }
+      logger.error("=========================END=======================================")
     }
-
   }
 
   private def cleanUp(benchmarkDir: String)(implicit hadoopConf: Configuration): Unit = {
@@ -165,13 +168,16 @@ object TestDFSIO extends App with LazyLogging {
         |           Date & time: ${new Date(System.currentTimeMillis())}
         |       Number of files: ${stats.tasks}
         |Total MBytes processed: ${stats.size / 0x100000}
-        |     Throughput mb/sec: ${stats.size * 1000.0 / (stats.time * 0x100000)}
+        |     Throughput mb/sec: ${stats.size * 1000.0 / (stats.time * 0x100000)} (if all tasks executed serially)
         |Average IO rate mb/sec: $med
         | IO rate std deviation: $stdDev
         |    Test exec time sec: ${execTime.toFloat / 1000}
-        |
+        |     Throughput mb/sec: ${stats.size.toFloat * 1000.0 / (execTime * 0x100000)} (if all tasks executed in parallel)
+        |       Average Latency: ${stats.latency.total.toFloat/stats.latency.blocks}
+        |       minimum Latency: ${stats.latency.min}
+        |       maximum Latency: ${stats.latency.max}
       """.stripMargin
-    logger.info(resultLines)
+    logger.error(resultLines)
     appendToResultFile(resFileName, resultLines)
   }
 

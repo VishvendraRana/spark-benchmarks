@@ -21,23 +21,39 @@ import org.apache.hadoop.fs.{FileSystem, Path}
 
 class IOReader(hadoopConf: Configuration, dataDir: String) extends IOTestBase(hadoopConf, dataDir) {
 
-  def doIO(fileName: String, fileSize: BytesSize)(implicit conf: Configuration, fs: FileSystem): BytesSize = {
+  def doIO(fileName: String, fileSize: BytesSize)(implicit conf: Configuration, fs: FileSystem): (BytesSize, Latency) = {
 
     val bufferSize = conf.getInt("test.io.file.buffer.size", DefaultBufferSize) // TODO GET RID OF DEFAULT
     val buffer: Array[Byte] = new Array[Byte](bufferSize)
     val filePath = new Path(dataDir, fileName.toString)
 
-    logger.info("Reading file {} with size {}", filePath.toString, fileSize.toString)
+    logger.error("Reading file {} with size {}", filePath.toString, fileSize.toString)
+    var latency : Double = 0
+    var minLatency: Double = Double.MaxValue
+    var maxLatency: Double = Double.MinValue
+    var numReads: Long = 0
 
     val in = fs.open(filePath)
 
     var actualSize: Long = 0 // TODO improve this
     try {
-      Stream.continually(in.read(buffer, 0, bufferSize))
-        .takeWhile(_ > 0 && actualSize < fileSize)
-        .foreach { currentSize =>
-          actualSize += currentSize
-          logger.debug(s"Reading chunk of size $currentSize. Currently: $actualSize / $fileSize")
+
+      def read: (Int, Double) = {
+        val startTime: Long = System.nanoTime()
+        val currentSize = in.read(buffer, 0, bufferSize)
+        val currLatency: Double = (System.nanoTime() - startTime).toDouble/1000
+        (currentSize, currLatency)
+      }
+
+      Stream.continually(read)
+        .takeWhile(_._1 > 0 && actualSize < fileSize)
+        .foreach { t =>
+          actualSize += t._1
+
+          latency += t._2
+          if (t._2 < minLatency) minLatency = t._2 else if (t._2 > maxLatency) maxLatency = t._2
+          numReads += 1
+          logger.debug(s"Reading chunk of size ${t._1}. Currently: $actualSize / $fileSize")
         }
     } finally {
       in.close()
@@ -45,7 +61,7 @@ class IOReader(hadoopConf: Configuration, dataDir: String) extends IOTestBase(ha
 
     logger.info("File {} with size {} read successfully", fileName, actualSize.toString)
 
-    actualSize
+    (actualSize, Latency(total = latency, blocks = numReads, min = minLatency, max = maxLatency))
   }
 
 }

@@ -18,7 +18,8 @@ package com.bbva.spark.benchmarks.dfsio
 
 import org.apache.spark.rdd.RDD
 
-case class Stats(tasks: Long, size: BytesSize, time: Long, rate: Float, sqRate: Float)
+case class Latency(total: Double, blocks: BytesSize, min: Double, max: Double)
+case class Stats(tasks: Long, size: BytesSize, time: Long, rate: Float, sqRate: Float, latency: Latency)
 
 object StatsAccumulator {
 
@@ -28,8 +29,8 @@ object StatsAccumulator {
       size = s1.size + s2.size,
       time = s1.time + s2.time,
       rate = s1.rate + s2.rate,
+      latency = Latency(total = s1.latency.total + s2.latency.total, blocks = s1.latency.blocks + s2.latency.blocks, min = if (s1.latency.min < s2.latency.min) s1.latency.min else s2.latency.min, max = if (s1.latency.max > s2.latency.max) s1.latency.max else s2.latency.max),
       sqRate = s1.sqRate + s2.sqRate
     )
   }
-
 }

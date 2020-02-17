@@ -21,7 +21,7 @@ import org.apache.hadoop.fs.{FileSystem, Path}
 
 class IOWriter(hadoopConf: Configuration, dataDir: String) extends IOTestBase(hadoopConf, dataDir) {
 
-  def doIO(fileName: String, fileSize: BytesSize)(implicit conf: Configuration, fs: FileSystem): BytesSize = {
+  def doIO(fileName: String, fileSize: BytesSize)(implicit conf: Configuration, fs: FileSystem): (BytesSize, Latency) = {
 
     val bufferSize = conf.getInt("test.io.file.buffer.size", DefaultBufferSize) // TODO GET RID OF DEFAULT
     val buffer: Array[Byte] = Array.tabulate[Byte](bufferSize)(i => ('0' + i % 50).toByte)
@@ -30,20 +30,28 @@ class IOWriter(hadoopConf: Configuration, dataDir: String) extends IOTestBase(ha
     logger.info("Creating file {} with size {}", filePath.toString, fileSize.toString)
 
     val out = fs.create(filePath, true, bufferSize)
+    var latency : Double = 0
+    var minLatency: Double = Double.MaxValue
+    var maxLatency: Double = Double.MinValue
+    var numWrites: Long = 0
 
     try {
       for (remaining <- fileSize to 0 by -bufferSize) {
         val currentSize = if (bufferSize.toLong < remaining) bufferSize else remaining.toInt
+        val startTime: Long = System.nanoTime()
         out.write(buffer, 0, currentSize)
+        val currLatency: Double = (System.nanoTime() - startTime).toDouble/1000
+        latency += currLatency
+        if (currLatency < minLatency) minLatency = currLatency
+        else if (currLatency > maxLatency) maxLatency = currLatency
+        numWrites += 1
       }
     } finally {
       out.close()
     }
 
     logger.info("File {} created with size {}", fileName, fileSize.toString)
-
-    fileSize
-
+    (fileSize, Latency(total = latency, blocks = numWrites, min = minLatency, max = maxLatency))
   }
 
 }

@@ -31,6 +31,7 @@ case class TestDFSIOConf(mode: TestMode = NotDefined,
                          benchmarkDir: String = "/benchmarks/DFSIO",
                          resFileName: String = "TestDFSIO_results.log",
                          bufferSize: Int = 1048576,
+                         numRuns: Int = 1,
                          hadoopExtraProps: Map[String, String] = Map.empty[String, String])
 
 object TestDFSIOConfParser extends LazyLogging {
@@ -68,6 +69,10 @@ object TestDFSIOConfParser extends LazyLogging {
           .validate(validateSize)
           .text("Size of each file to write (B|KB|MB|GB). Default to 1MB."),
 
+        opt[Int]("numRuns").optional().valueName("<value>")
+          .action((n, c) => c.copy(numRuns = n))
+          .text("Number of runs. Default to 1."),
+
         opt[Map[String, String]]("hadoopProps").optional().valueName("k1=v1,k2=v2...")
           .action( (p, c) => c.copy(hadoopExtraProps = p))
           .text("Extra hadoop configuration properties")
@@ -102,6 +107,10 @@ object TestDFSIOConfParser extends LazyLogging {
           .action((s, c) => c.copy(fileSize = sizeToBytes(s)))
           .validate(validateSize)
           .text("Size of each file to write (B|KB|MB|GB). Default to 1MB."),
+
+        opt[Int]("numRuns").optional().valueName("<value>")
+          .action((n, c) => c.copy(numRuns = n))
+          .text("Number of runs. Default to 1."),
 
         opt[Map[String, String]]("hadoopProps").optional().valueName("k1=v1,k2=v2...")
           .action( (p, c) => c.copy(hadoopExtraProps = p))

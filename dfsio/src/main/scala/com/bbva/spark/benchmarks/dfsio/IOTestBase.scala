@@ -42,30 +42,31 @@ abstract class IOTestBase(hadoopConf: Configuration, dataDir: String) extends Se
 
         val tStart: Long = System.currentTimeMillis()
 
-        val output = doIO(fileName, fileSize)
-
+        val (output, latency) = doIO(fileName, fileSize)
         val execTime: Long = System.currentTimeMillis() - tStart
 
-        collectStats(fileName, execTime, output)
+        collectStats(fileName, execTime, output, latency)
 
       }
     }
 
   }
 
-  def collectStats(fileName: String, execTime: Long, totalSize: BytesSize): Stats = {
+  def collectStats(fileName: String, execTime: Long, totalSize: BytesSize, latency: Latency): Stats = {
 
     val ioRateMbSec: Float = totalSize.toFloat * 1000 / (execTime * 0x100000) // MEGA in hexadecimal = 0x100000
+    val avgLatency: Float = latency.total.toFloat / latency.blocks
 
-    logger.info("Number of bytes processed = {}", totalSize)
-    logger.info("Exec time = {}", execTime)
-    logger.info("IO rate = {}", ioRateMbSec)
+    logger.error("Number of bytes processed = {}", totalSize)
+    logger.error("Exec time = {}", execTime)
+    logger.error("IO rate = {}", ioRateMbSec)
+    logger.error("Avg Latency per file = {} in micro seconds", avgLatency)
 
     Stats(tasks = 1, size = totalSize, time = execTime, rate = ioRateMbSec * 1000,
-      sqRate = ioRateMbSec * ioRateMbSec * 1000)
+      sqRate = ioRateMbSec * ioRateMbSec * 1000, latency = latency)
 
   }
 
-  def doIO(fileName: String, fileSize: BytesSize)(implicit conf: Configuration, fs: FileSystem): BytesSize
+  def doIO(fileName: String, fileSize: BytesSize)(implicit conf: Configuration, fs: FileSystem): (BytesSize, Latency)
 
 }
