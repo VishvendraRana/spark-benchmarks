@@ -16,6 +16,10 @@
 
 package com.bbva.spark.benchmarks.dfsio
 
+import java.io._
+import java.security.{DigestInputStream, MessageDigest}
+import java.util.UUID
+
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
 
@@ -24,8 +28,18 @@ class IOWriter(hadoopConf: Configuration, dataDir: String) extends IOTestBase(ha
   def doIO(fileName: String, fileSize: BytesSize)(implicit conf: Configuration, fs: FileSystem): (BytesSize, Latency) = {
 
     val bufferSize = conf.getInt("test.io.file.buffer.size", DefaultBufferSize) // TODO GET RID OF DEFAULT
+    val validateData = conf.getBoolean("dce.write.validate-data.enabled", false) // TODO GET RID OF DEFAULT
+
     val buffer: Array[Byte] = Array.tabulate[Byte](bufferSize)(i => ('0' + i % 50).toByte)
     val filePath = new Path(dataDir, fileName.toString)
+
+    val localFilePath = new Path(s"/fluir_data/${fileName.toString}-${UUID.randomUUID().toString}")
+    val localFile = new File(localFilePath.toString)
+
+    val localOutStream = if (validateData) {
+      logger.info("Creating file {} with size {}", localFilePath.toString, fileSize.toString)
+      Some(new BufferedOutputStream( new FileOutputStream(localFile)))
+    } else { None }
 
     logger.info("Creating file {} with size {}", filePath.toString, fileSize.toString)
 
@@ -40,6 +54,7 @@ class IOWriter(hadoopConf: Configuration, dataDir: String) extends IOTestBase(ha
         val currentSize = if (bufferSize.toLong < remaining) bufferSize else remaining.toInt
         val startTime: Long = System.nanoTime()
         out.write(buffer, 0, currentSize)
+        if (localOutStream.nonEmpty) localOutStream.get.write(buffer, 0, currentSize)
         val currLatency: Double = (System.nanoTime() - startTime).toDouble/1000
         latency += currLatency
         if (currLatency < minLatency) minLatency = currLatency
@@ -48,10 +63,43 @@ class IOWriter(hadoopConf: Configuration, dataDir: String) extends IOTestBase(ha
       }
     } finally {
       out.close()
+      if (localOutStream.nonEmpty) localOutStream.get.close()
     }
 
     logger.info("File {} created with size {}", fileName, fileSize.toString)
+    if (validateData) {
+      logger.info("File {} created with size {}", localFilePath.toString, fileSize.toString)
+
+      // validate data
+      val localFileHash = computeHash(localFilePath)
+      val hdfsFileHash = computeHash(filePath, Some(fs))
+      if (localFileHash.equals(hdfsFileHash)) {
+        logger.info(s"MD5Hash of local file: ${localFilePath.toString}" +
+          s" is same as hdfs file: ${filePath.toString}")
+        localFile.delete()
+      } else {
+        throw new RuntimeException(s"MD5Hash of local file: ${localFilePath.toString}" +
+          s" doesn't match with hdfs file: ${filePath.toString}")
+      }
+    }
+
     (fileSize, Latency(total = latency, blocks = numWrites, min = minLatency, max = maxLatency))
   }
 
+  // Compute a hash of a file
+  def computeHash(filePath: Path, fs: Option[FileSystem] = None): String = {
+    val buffer = new Array[Byte](8192)
+    val md5 = MessageDigest.getInstance("MD5")
+
+    val in = if (fs.nonEmpty) {
+      fs.get.open(filePath)
+    } else {
+      new FileInputStream(new File(filePath.toString))
+    }
+
+    val dis = new DigestInputStream(in, md5)
+    try { while (dis.read(buffer) != -1) { } } finally { dis.close() }
+
+    md5.digest.map("%02x".format(_)).mkString
+  }
 }
