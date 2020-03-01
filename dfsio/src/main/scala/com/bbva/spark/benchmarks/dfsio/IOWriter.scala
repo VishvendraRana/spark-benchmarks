@@ -28,7 +28,7 @@ class IOWriter(hadoopConf: Configuration, dataDir: String) extends IOTestBase(ha
   def doIO(fileName: String, fileSize: BytesSize)(implicit conf: Configuration, fs: FileSystem): (BytesSize, Latency) = {
 
     val bufferSize = conf.getInt("test.io.file.buffer.size", DefaultBufferSize) // TODO GET RID OF DEFAULT
-    val validateData = conf.getBoolean("dce.write.validate-data.enabled", false) // TODO GET RID OF DEFAULT
+    val validateData = conf.getBoolean("test.write.validate-data.enabled", false) // TODO GET RID OF DEFAULT
 
     val buffer: Array[Byte] = Array.tabulate[Byte](bufferSize)(i => ('0' + i % 50).toByte)
     val filePath = new Path(dataDir, fileName.toString)
