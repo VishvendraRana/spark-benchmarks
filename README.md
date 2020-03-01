@@ -1,3 +1,14 @@
+Changes added in the original Spark Benchmarks
+==============================================
+- Data validation support in write path which can be enabled/disabled by setting a flag
+- numRuns flag to repeat same operation (read/write) for number of times
+- bug fix for setting bufferSize
+- avg. latency calucation in result for read and write both
+- avg. throughput calculation when all executor starts in parallel
+
+
+
+
 Spark Benchmarks
 ================
 
